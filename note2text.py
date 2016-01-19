@@ -1,3 +1,4 @@
+from __future__ import print_function
 #encoding=utf-8
 __author__ = 'Louis'
 import re,os,shutil
@@ -78,7 +79,7 @@ for paragraph in allPieces:
 
 for book in bookList.values():
     bookname=book.name
-    print("正在生成",book.name,)
+    print("Generating...",book.name,)
     print('.'*6)
 
     if os.path.exists(bookname):
@@ -91,4 +92,4 @@ for book in bookList.values():
     for content in book.contents:
         file.write(content[1]+'\n\n')
     file.close()
-print("生成笔记成功")
+print("Done.")
