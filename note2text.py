@@ -85,6 +85,7 @@ for paragraph in allPieces:
 
 
 for book in bookList.values():
+
     bookname = book.name
     print("Generating ...", book.name)
 
