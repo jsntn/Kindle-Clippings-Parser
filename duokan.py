@@ -10,7 +10,7 @@ def handleContent(text):
         temp = temp[1:]
         print('问题段结束:', temp)
     if not temp.endswith('。'):
-        if temp.endswith(('？', '！', '”')):
+        if temp.endswith(('？', '！', '”','；')):
             pass
         elif temp.endswith(('，', '：')):
             temp = temp[:-1] + '。'
@@ -19,7 +19,7 @@ def handleContent(text):
     return temp + '\n'
 
 
-ifile = open('duokan.txt', 'r', encoding='utf-8')
+ifile = open('duokan.txt', 'r', encoding='gbk')
 ofile = open('duokan_Markdown.md', 'w', encoding='utf-8')
 
 ptime = re.compile(r'\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d\n')
