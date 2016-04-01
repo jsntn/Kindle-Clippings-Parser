@@ -18,64 +18,93 @@ class book:
                 del self.contents[-1]
         self.contents.append((pos, content))
 
+def strip(func):
+    """
+    将函数的参数字符串掐头去尾
+    """
+    def wrapper(*args, **kwargs):
+        # 目前只判断 1 个参数的情况，未来可以扩展为多个
+        if(len(args) == 1 and isinstance(args[0], str)):
+            striped_arg = args[0].strip()
+        else:
+            raise AttributeError
+        return func(striped_arg)
+    return wrapper
 
+@strip
 def handleBookName(text):
-    name = ''
-    author = ''
-    ls = text.split(' ', 1)
-    pname = re.compile('[\ufeff](.*)')
-    pSpecialName = re.compile('[:](.*?)[(]')
-    pauthor = re.compile(r'\((.*?)\)')
+    """
+    提取书本名称及作者
+    """
 
-    specialNameRes = pSpecialName.search(ls[0])
-    if not specialNameRes:
-        nameres = pname.search(ls[0])
+    if ' ' in text:
+        name_part, author_part = text.split(' ', 1)
+        author_regex = r'\((.*?)\)$'
+        author = re.search(author_regex, author_part).group(1)
     else:
-        nameres = specialNameRes
-    authorres = pauthor.search(ls[-1])
-    name = nameres.group(1)
-    author = authorres.group(1)
+        name_part = text
+        author = ''
+
+    name_regex = r'^(.*)' # r'[\ufeff](.*)'
+    special_name_regex = r'[:](.*?)[ (]'
+
+    if not re.search(special_name_regex, name_part):
+        name_found = re.search(name_regex, name_part)
+        if name_found:
+            name = name_found.group(1)
+        else:
+            raise ValueError('未能匹配到书本名称')
+    else:
+        name = special_name_res.group(1)
+
     return name.strip(), author.strip()
 
-
+@strip
 def handlePos(text):
-    pattern = re.compile('#(\d*)')
-    res = pattern.search(text)
-    return res.group(1)
+    """
+    提取标注位置
+    """
+    pos_regex = r'#(\d*)'
+    pos_found = re.search(pos_regex, text)
+    if pos_found:
+        return pos_found.group(1)
+    else:
+        return 0  # 无法匹配出位置，以 0 代替
 
-
+@strip
 def handleContent(text):
-    temp = text.strip()
-    if temp.startswith(('，', '：')):
-        temp = temp[1:]
-    if not temp.endswith('。'):
-        if temp.endswith(('？', '！', '”')):
-            pass
-        elif temp.endswith(('，', '：')):
-            temp = temp[:-1] + '。'
-        else:
-            temp = temp + '。'
-    pattern = re.compile('(\s+)')
-    temp = pattern.sub('\n', temp)
+    """
+    提取标注内容
+    """
+    text = text.strip()
+    if not text:
+        return ''
 
-    return temp
+    # 检查起始字符
+    if text[0] in {'，', '：'}:
+        text = text[1:]
+
+    # 检查末尾字符标点
+    if text[-1] in {'，', '：'}:
+        text = text[:-1].join('。')
+    elif text[-1] not in {'。', '？', '！', '”'}:
+        text = text.join('。')
+
+    return re.sub(r'(\s+)', '\n', text)
 
 bookList = {}
-srcFile = open(r"My Clippings.txt", 'r', encoding='utf-8')
+srcFile = open('My Clippings.txt', 'r', encoding='utf-8')
 allPieces = srcFile.read().split("==========\n")
 del allPieces[-1]
 
 for paragraph in allPieces:
-    ls = paragraph.split('\n', 3)
-    bookname = ''
-    author = ''
-    pos = ''
-    content = ''
-    bookname, author = handleBookName(ls[0].strip())
-    pos = handlePos(ls[1].strip())
-    content = handleContent(ls[3])
+    name_line, pos_line, _, content_block = paragraph.split('\n', 3)
+    bookname, author = handleBookName(name_line)
+    pos = handlePos(pos_line)
+    content = handleContent(content_block)
+
     if len(content) > 3:
-        if not bookname in bookList.keys():
+        if bookname not in bookList:
             the_book = book(bookname, author)
             the_book.add(pos, content)
             bookList[bookname] = the_book
