@@ -6,6 +6,9 @@ import re
 import os
 import shutil
 
+OUTPUT_DIR = 'output' # 输出文件夹名
+MIN_CONTENT_LENGTH = 3 # 摘录内容最小可接受长度
+
 
 class book:
     """
@@ -105,6 +108,18 @@ def extract_content(text):
     return re.sub(r'(\s+)', '\n', text)
 
 
+def read_clippings_file():
+    """
+    读入 My Clippings.txt 文件为列表
+    """
+    srcFile = open('My Clippings.txt', 'r', encoding='utf-8')
+    pieces = srcFile.read().replace(r'\ufeff', '').split("==========\n")
+    # 最后一行是"==========\n"，因而 pieces[-1] 为空
+    del pieces[-1]
+
+    return pieces
+
+
 def parse(allPieces):
     """
     解析各段落
@@ -116,7 +131,7 @@ def parse(allPieces):
         pos = extract_position(pos_line)
         content = extract_content(content_block)
 
-        if len(content) > 3:
+        if len(content) > MIN_CONTENT_LENGTH:
             if title not in books:
                 books[title] = book(title, author, pos, content)
             else:
@@ -124,35 +139,38 @@ def parse(allPieces):
     return books
 
 
-def main():
-    OUTPUT_DIR = 'output'
-
-    srcFile = open('My Clippings.txt', 'r', encoding='utf-8')
-    pieces = srcFile.read().replace(r'\ufeff', '').split("==========\n")
-    # 最后一行是"==========\n"，因而 pieces[-1] 为空
-    del pieces[-1]
-
-    books = parse(pieces)
+def export_txt(books):
+    """
+    将 Kindle 摘录内容输出为 txt 文件
+    """
 
     for book in books.values():
         title = book.name
         print("Generating ...", book.name)
 
+        # 检查 output 文件夹是否存在
         if not os.path.exists(OUTPUT_DIR):
             os.makedirs(OUTPUT_DIR)
 
+        # 为每本书创建目录
         if os.path.exists(OUTPUT_DIR + os.path.sep + title):
             shutil.rmtree(OUTPUT_DIR + os.path.sep + title)
             os.makedirs(OUTPUT_DIR + os.path.sep + title)
         else:
             os.makedirs(OUTPUT_DIR + os.path.sep + title)
 
-        file = open(OUTPUT_DIR + os.path.sep + title + os.path.sep + title + '.txt', 'w', encoding='utf-8')
-
-        for content_info in book.contents:
-            file.write(content_info['content'] + '\n\n')
-        file.close()
+        # 每本书一个文件，输入摘录内容
+        with open(OUTPUT_DIR + os.path.sep + title + os.path.sep + title + '.txt', 'w', encoding='utf-8') as file:
+            for content_info in book.contents:
+                file.write(content_info['content'] + '\n\n')
     print("Done.")
+
+
+def main():
+    books = parse(read_clippings_file())
+
+    export_txt(books)
+
 
 if __name__ == '__main__':
     main()
