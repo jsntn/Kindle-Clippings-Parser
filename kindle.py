@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 
@@ -5,18 +6,28 @@ import re
 import os
 import shutil
 
+OUTPUT_DIR = 'output' # 输出文件夹名
+MIN_CONTENT_LENGTH = 3 # 摘录内容最小可接受长度
+
 
 class book:
-    def __init__(self, name, author):
-        self.name = name
-        self.author = author
-        self.contents = []
+    """
+    图书类，每本书有 书名（name），作者（author），摘录内容列表（contents）
+    摘录内容列表中，每个元素是键为 pos 和 content 的词典
+    """
+    def __init__(self, name, author, pos, content):
+        self.name, self.author = name, author
+        self.contents = [{'pos': pos, 'content': content}]
 
     def add(self, pos, content):
-        if len(self.contents) > 0:
-            if self.contents[-1][0] == pos:
+        """
+        向图书添加新的摘录内容及其位置
+        """
+        if self.contents:
+            if self.contents[-1]['pos'] == pos:
                 del self.contents[-1]
-        self.contents.append((pos, content))
+        self.contents.append({'pos': pos, 'content': content})
+
 
 def strip(func):
     """
@@ -31,8 +42,9 @@ def strip(func):
         return func(striped_arg)
     return wrapper
 
+
 @strip
-def handleBookName(text):
+def extract_title(text):
     """
     提取书本名称及作者
     """
@@ -45,22 +57,24 @@ def handleBookName(text):
         name_part = text
         author = ''
 
-    name_regex = r'^(.*)' # r'[\ufeff](.*)'
+    name_regex = r'^(.*)'
     special_name_regex = r'[:](.*?)[ (]'
 
-    if not re.search(special_name_regex, name_part):
+    special_name_found = re.search(special_name_regex, name_part)
+    if special_name_found:
+        name = special_name_found.group(1)
+    else:
         name_found = re.search(name_regex, name_part)
         if name_found:
             name = name_found.group(1)
         else:
             raise ValueError('未能匹配到书本名称')
-    else:
-        name = special_name_res.group(1)
 
     return name.strip(), author.strip()
 
+
 @strip
-def handlePos(text):
+def extract_position(text):
     """
     提取标注位置
     """
@@ -71,8 +85,9 @@ def handlePos(text):
     else:
         return 0  # 无法匹配出位置，以 0 代替
 
+
 @strip
-def handleContent(text):
+def extract_content(text):
     """
     提取标注内容
     """
@@ -92,39 +107,70 @@ def handleContent(text):
 
     return re.sub(r'(\s+)', '\n', text)
 
-bookList = {}
-srcFile = open('My Clippings.txt', 'r', encoding='utf-8')
-allPieces = srcFile.read().split("==========\n")
-del allPieces[-1]
 
-for paragraph in allPieces:
-    name_line, pos_line, _, content_block = paragraph.split('\n', 3)
-    bookname, author = handleBookName(name_line)
-    pos = handlePos(pos_line)
-    content = handleContent(content_block)
+def read_clippings_file():
+    """
+    读入 My Clippings.txt 文件为列表
+    """
+    srcFile = open('My Clippings.txt', 'r', encoding='utf-8')
+    pieces = srcFile.read().replace(r'\ufeff', '').split("==========\n")
+    # 最后一行是"==========\n"，因而 pieces[-1] 为空
+    del pieces[-1]
 
-    if len(content) > 3:
-        if bookname not in bookList:
-            the_book = book(bookname, author)
-            the_book.add(pos, content)
-            bookList[bookname] = the_book
+    return pieces
+
+
+def parse(pieces):
+    """
+    解析各段落
+    """
+    books = {}
+    for paragraph in pieces:
+        title_line, pos_line, _, content_block = paragraph.split('\n', 3)
+        title, author = extract_title(title_line)
+        pos = extract_position(pos_line)
+        content = extract_content(content_block)
+
+        if len(content) > MIN_CONTENT_LENGTH:
+            if title not in books:
+                books[title] = book(title, author, pos, content)
+            else:
+                books[title].add(pos, content)
+    return books
+
+
+def export_txt(books):
+    """
+    将 Kindle 摘录内容输出为 txt 文件
+    """
+
+    for book in books.values():
+        title = book.name
+        print("Generating ...", book.name)
+
+        # 检查 output 文件夹是否存在
+        if not os.path.exists(OUTPUT_DIR):
+            os.makedirs(OUTPUT_DIR)
+
+        # 为每本书创建目录
+        if os.path.exists(OUTPUT_DIR + os.path.sep + title):
+            shutil.rmtree(OUTPUT_DIR + os.path.sep + title)
+            os.makedirs(OUTPUT_DIR + os.path.sep + title)
         else:
-            bookList[bookname].add(pos, content)
+            os.makedirs(OUTPUT_DIR + os.path.sep + title)
+
+        # 每本书一个文件，输入摘录内容
+        with open(OUTPUT_DIR + os.path.sep + title + os.path.sep + title + '.txt', 'w', encoding='utf-8') as file:
+            for content_info in book.contents:
+                file.write(content_info['content'] + '\n\n')
+    print("Done.")
 
 
-for book in bookList.values():
+def main():
+    books = parse(read_clippings_file())
 
-    bookname = book.name
-    print("Generating ...", book.name)
+    export_txt(books)
 
-    if os.path.exists(bookname):
-        shutil.rmtree(bookname)
-        os.makedirs(bookname)
-    else:
-        os.makedirs(bookname)
-    file = open(bookname + '/' + bookname + '.txt', 'w', encoding='utf-8')
 
-    for content in book.contents:
-        file.write(content[1] + '\n\n')
-    file.close()
-print("Done.")
+if __name__ == '__main__':
+    main()
