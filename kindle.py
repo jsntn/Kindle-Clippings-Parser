@@ -120,12 +120,12 @@ def read_clippings_file():
     return pieces
 
 
-def parse(allPieces):
+def parse(pieces):
     """
     解析各段落
     """
     books = {}
-    for paragraph in allPieces:
+    for paragraph in pieces:
         title_line, pos_line, _, content_block = paragraph.split('\n', 3)
         title, author = extract_title(title_line)
         pos = extract_position(pos_line)
