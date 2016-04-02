@@ -45,7 +45,7 @@ def handleBookName(text):
         name_part = text
         author = ''
 
-    name_regex = r'^(.*)' # r'[\ufeff](.*)'
+    name_regex = r'^(.*)'
     special_name_regex = r'[:](.*?)[ (]'
 
     if not re.search(special_name_regex, name_part):
@@ -94,7 +94,7 @@ def handleContent(text):
 
 bookList = {}
 srcFile = open('My Clippings.txt', 'r', encoding='utf-8')
-allPieces = srcFile.read().split("==========\n")
+allPieces = srcFile.read().replace(r'\ufeff', '').split("==========\n")
 del allPieces[-1]
 
 for paragraph in allPieces:
